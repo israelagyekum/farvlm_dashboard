@@ -56,7 +56,7 @@ ablation_df = pd.DataFrame(
 
 # Note: only three per-pathology classification AUC-ROC values are explicitly stated in the
 # paper text (max, second, min). The full 14-label breakdown for this metric was not saved to
-# a data file, so it is not fabricated here — the authentic chart image (fig4) is shown instead,
+# a data file, so it is not fabricated here -- the authentic chart image (fig4) is shown instead,
 # and only these three confirmed anchor values are surfaced as text.
 per_pathology_auc_confirmed = [
     {"Pathology": "Pneumothorax", "AUC-ROC": 0.9905, "Note": "highest"},
@@ -199,7 +199,7 @@ Existing medical vision-language models (MedCLIP, GLoRIA, BioViL, BioViL-T, LLaV
 optimised purely for classification accuracy. None incorporate a training-time faithfulness
 constraint, and post-hoc explanation methods applied after convergence produce unreliable
 saliency maps in the medical domain. A saliency map can look clinically plausible while not
-reflecting the model's true computational pathway — an unfaithful explanation that highlights
+reflecting the model's true computational pathway -- an unfaithful explanation that highlights
 the correct region by coincidence provides no safety guarantee, and one that highlights the
 wrong region could actively mislead clinical decision-making. FAR-VLM closes this gap by
 building the faithfulness constraint directly into training, at zero additional cost at
@@ -218,7 +218,7 @@ inference time.
     with colB:
         st.markdown("**2. CMFS**")
         st.caption(
-            "The Cross-Modal Faithfulness Score — the first metric quantifying "
+            "The Cross-Modal Faithfulness Score -- the first metric quantifying "
             "visual-textual attention alignment without manual annotation."
         )
     with colC:
@@ -251,7 +251,7 @@ pre-trained on PubMed and PMC biomedical literature. Reports are tokenised to a 
 
 **Cross-attention fusion.** Image patches attend to text tokens via scaled dot-product
 attention, producing an attention matrix that encodes which image patches attend to which
-text tokens — the natural bridge between visual regions and clinical language. Mean-pooled
+text tokens -- the natural bridge between visual regions and clinical language. Mean-pooled
 output feeds a linear head (768 -> 14, sigmoid) producing 14 pathology probabilities.
 Total parameters: 203.5M (52.0M trainable).
 """
@@ -264,7 +264,7 @@ For each training image, the top-*k* most-attended patches are identified from t
 cross-attention map and zeroed out, producing a perturbed image. The perturbed image is
 passed through the same model to obtain a perturbed prediction. The FAR loss rewards the
 model for producing a **large drop in confidence** when its most-attended patches are
-removed — i.e. for actually depending on the regions it claims to attend to. It is added to
+removed -- i.e. for actually depending on the regions it claims to attend to. It is added to
 the standard multi-label binary cross-entropy loss, weighted by lambda. Training requires
 two forward passes per batch (original and perturbed), adding approximately 55% to
 per-epoch wall-clock time; **inference uses only the upper path with zero overhead**.
@@ -288,7 +288,7 @@ baseline (attention with no learned structure) sits at approximately 0.07; FAR-V
         """
 **MIMIC-CXR-JPG v2.1.0** (training and primary evaluation): 32,829 frontal-view studies,
 each paired with a radiology report and 14 CheXpert binary labels. Split 70/15/15
-(train 22,980 / val 4,924 / test 4,925). Label distribution is highly imbalanced —
+(train 22,980 / val 4,924 / test 4,925). Label distribution is highly imbalanced --
 "No Finding" and "Support Devices" are the most prevalent labels; "Fracture" and
 "Lung Lesion" appear in fewer than 3% of studies.
 
@@ -319,7 +319,7 @@ with tabs[2]:
         "FAR-VLM achieves AUC-ROC = 0.9039, +12.7 pp over DenseNet-121 (image-only lower bound), "
         "+11.3 pp over MedCLIP (zero-shot), and +30.4 pp over fine-tuned GLoRIA. Accuracy improves "
         "from 70.01% to 88.04%; macro F1 from 0.312 to 0.369. The faithfulness constraint does not "
-        "penalise classification — FAR-VLM outperforms all baselines on every metric."
+        "penalise classification -- FAR-VLM outperforms all baselines on every metric."
     )
 
     st.header("Bootstrap 95% confidence intervals")
@@ -375,22 +375,22 @@ with tabs[3]:
     st.dataframe(faithfulness_df.style.format({"Value": "{:.4f}"}), width='stretch', hide_index=True)
     st.markdown(
         """
-**Deletion AUC = 0.8062** — removing the top-50 attended patches causes a marked drop in
+**Deletion AUC = 0.8062** -- removing the top-50 attended patches causes a marked drop in
 prediction confidence, confirming causal responsibility of attended regions. Substantially
 higher than the no-FAR baseline (0.2691).
 
-**Insertion AUC = 0.023** — starting from a blank image and inserting only the top-50
+**Insertion AUC = 0.023** -- starting from a blank image and inserting only the top-50
 patches recovers minimal confidence, confirming attention is spatially distributed across
 anatomically meaningful regions rather than concentrated on a single artefact.
 
-**CMFS = 0.2356** (3.4x random) — the first quantitative evidence of cross-modal attention
+**CMFS = 0.2356** (3.4x random) -- the first quantitative evidence of cross-modal attention
 alignment in a trained medical VLM.
 """
     )
 
     st.header("Per-pathology Deletion AUC")
     st.caption(
-        "All 14 pathologies fall within [0.797, 0.805] (mean = 0.803, std = 0.003) — reported as "
+        "All 14 pathologies fall within [0.797, 0.805] (mean = 0.803, std = 0.003) -- reported as "
         "a table rather than a chart because the variation is under one percentage point, too "
         "narrow to distinguish visually on a [0,1] axis."
     )
@@ -411,14 +411,22 @@ alignment in a trained medical VLM.
         ),
         width='stretch', hide_index=True,
     )
+    abl_plot_df = ablation_df.dropna(subset=["AUC-ROC", "Del-AUC"]).copy()
+    # The k=50, lambda=0.1 configuration is listed twice in the table (once as the deployed
+    # FAR-VLM row, once in the sensitivity sweep) because it is the paper's best-faithfulness
+    # operating point in both contexts -- but it is the same underlying result, so it should
+    # only appear once on the chart to avoid two labels stacking on identical coordinates.
+    abl_plot_df = abl_plot_df.drop_duplicates(subset=["AUC-ROC", "Del-AUC"], keep="first")
     fig_abl = px.scatter(
-        ablation_df.dropna(subset=["AUC-ROC", "Del-AUC"]),
-        x="AUC-ROC", y="Del-AUC", color="Group", text="Variant", size_max=20,
+        abl_plot_df,
+        x="AUC-ROC", y="Del-AUC", color="Variant", size_max=20,
         title="Classification vs. faithfulness trade-off",
+        hover_data={"Group": True, "AUC-ROC": ":.3f", "Del-AUC": ":.3f"},
     )
-    fig_abl.update_traces(textposition="top center", marker=dict(size=14))
-    fig_abl.update_layout(height=500)
+    fig_abl.update_traces(marker=dict(size=16))
+    fig_abl.update_layout(height=480, legend=dict(orientation="h", yanchor="bottom", y=-0.55, x=0))
     st.plotly_chart(fig_abl, width='stretch')
+    st.caption("Hover over a point to see its exact configuration and values.")
     st.markdown(
         """
 The gap between ViT-only (AUC = 0.749) and ViT+BioBERT no-FAR (AUC = 0.903) attributes
@@ -439,7 +447,7 @@ with tabs[4]:
     st.markdown(
         """
 FAR-VLM achieves macro AUC-ROC = **0.7586** on OpenI (n=1,000, 13 evaluable CheXpert labels,
-**zero-shot, no retraining**), compared to 0.9039 in-domain — a generalisation gap of 14.5 pp
+**zero-shot, no retraining**), compared to 0.9039 in-domain -- a generalisation gap of 14.5 pp
 expected given domain shift, scanner protocol differences, and label-set mismatches.
 Deletion AUC on OpenI = -0.7156; CMFS = 0.1681.
 """
@@ -473,8 +481,8 @@ with tabs[5]:
         st.image(str(fig7), width='stretch',
                   caption="Cross-attention heatmaps on MIMIC-CXR-JPG test samples, annotated with "
                           "predicted pathology labels and per-sample CMFS score. Hotspots concentrate "
-                          "on lung fields, pleural margins, and cardiac borders — clinically relevant "
-                          "regions — confirming FAR regularisation produces anatomically meaningful "
+                          "on lung fields, pleural margins, and cardiac borders -- clinically relevant "
+                          "regions -- confirming FAR regularisation produces anatomically meaningful "
                           "attention. Higher-CMFS samples show tighter co-localisation between "
                           "highlighted patches and report-mentioned anatomy.")
 
@@ -485,14 +493,14 @@ with tabs[5]:
                   caption="Representative failure cases across three modes.")
     st.markdown(
         """
-**Mode 1 — Rare-pathology under-recall.** Fracture and Lung Lesion (<3% prevalence) are
+**Mode 1 -- Rare-pathology under-recall.** Fracture and Lung Lesion (<3% prevalence) are
 occasionally missed despite adequate Deletion AUC (0.804), suggesting classifier
 under-training rather than unfaithful attention.
 
-**Mode 2 — Overlapping pathology confusion.** Consolidation and Lung Opacity share
+**Mode 2 -- Overlapping pathology confusion.** Consolidation and Lung Opacity share
 overlapping visual appearance and are frequently co-predicted.
 
-**Mode 3 — Label-set transfer gap.** Pleural Effusion (OpenI AUC 0.415) fails where
+**Mode 3 -- Label-set transfer gap.** Pleural Effusion (OpenI AUC 0.415) fails where
 ground-truth annotations use different grading criteria than MIMIC-CXR's CheXpert labels.
 """
     )
